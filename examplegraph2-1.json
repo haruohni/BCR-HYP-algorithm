@@ -1,0 +1,19 @@
+{
+    "vertices": [
+        {"id": "t1", "terminal": true},
+        {"id": "t2", "terminal": true},
+        {"id": "t3", "terminal": true},
+        {"id": "t4", "terminal": true},
+        {"id": "s1", "terminal": false}
+    ],
+    "edges": [
+        {"u": "t1", "v": "t2", "cost": 1.5},
+        {"u": "t2", "v": "t3", "cost": 1.5},
+        {"u": "t3", "v": "t4", "cost": 1.5},
+        {"u": "t4", "v": "t1", "cost": 1.5},
+        {"u": "t1", "v": "s1", "cost": 1},
+        {"u": "t2", "v": "s1", "cost": 1},
+        {"u": "t3", "v": "s1", "cost": 1},
+        {"u": "t4", "v": "s1", "cost": 1}
+    ]
+}
