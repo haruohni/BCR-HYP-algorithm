@@ -7,4 +7,5 @@ if __name__ == "__main__":
         sys.exit(1)
     graph = sg()
     graph.graph_from_json(sys.argv[1])
-    print(graph.terminals)
+    graph.validate()
+    graph.graph_plot()
