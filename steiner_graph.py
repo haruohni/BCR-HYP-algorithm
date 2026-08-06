@@ -27,6 +27,7 @@ class steiner_graph:    # ターミナル付きグラフ
         self.vertices = self.terminals + steiner_vertices
         self.is_terminal = {v: v[0] == "t" for v in self.vertices}
         num_vertices = num_terminals + num_steiner_vertices
+
         self.edges = []
         connect = self.vertices[:]  # 連結性を担保する
         random.shuffle(connect)
@@ -46,8 +47,10 @@ class steiner_graph:    # ターミナル付きグラフ
     def validate(self):    # 正当性チェック　不適切ならValueErrorを返す
         if len(self.terminals) < 2:
             raise ValueError("ターミナルは2以上必要です")
+        
         if len(self.vertices) != len(set(self.vertices)):
             raise ValueError("同じ名前の頂点が存在します")
+        
         vertex_set = set(self.vertices)
         for e in self.edges:
             if e["u"] not in vertex_set or e["v"] not in vertex_set:
@@ -56,9 +59,11 @@ class steiner_graph:    # ターミナル付きグラフ
                 raise ValueError("自己ループが存在します")
             if e["cost"] < 0:
                 raise ValueError("辺コストは非負である必要があります")
+            
         edge_pairs = [frozenset({e["u"], e["v"]}) for e in self.edges]
         if len(edge_pairs) != len(set(edge_pairs)):
             raise ValueError("多重辺が存在します")
+        
         adj = self.build_adjucency()
         start = self.vertices[0]
         visited = {start}
@@ -93,9 +98,11 @@ class steiner_graph:    # ターミナル付きグラフ
                 node.attr["color"] = "lightblue"
                 node.attr["style"] = "filled"
                 node.attr["fillcolor"] = "lightblue"
+
         for u, v in G.edges:
             edge = A.get_edge(u, v)
             edge.attr["label"] = f"{G.edges[u, v]['cost']:.3f}"
+
         A.graph_attr["sep"] = "+15"
         A.graph_attr["len"] = "2.0"
         A.graph_attr["size"] = "10,10"
@@ -119,6 +126,6 @@ class steiner_graph:    # ターミナル付きグラフ
 
 if __name__ == "__main__":
     graph = steiner_graph()
-    graph.graph_random(4,4,0.5)
+    graph.graph_random(4,4,0.1)
     graph.validate()
     graph.graph_plot()
