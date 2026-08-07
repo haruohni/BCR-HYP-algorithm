@@ -59,6 +59,15 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
         raise RuntimeError("BCRの求解に失敗しました")
 
     solution = [res.x[i] for i in range(num_arcs)]
+    num_frac = 0
+    for i in solution:
+        if 1e-6 < i and i < 1-1e-6:
+            num_frac += 1
+    if num_frac == 0:
+        print("解は整数値です")
+    else:
+        print("分数解が存在します")
+
     return {
         "arcs": graph.arcs,
         "optimal_value": res.fun,
@@ -66,11 +75,8 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
         }
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("JSONファイルを指定してください")
-        sys.exit(1)
     graph = sg()
-    graph.graph_random(4, 6, 1, 2, 0.2)
+    graph.graph_random(4, 6, 1, 5, 0.2)
     graph.validate()
     graph.graph_plot()
     result = BCR_solver(graph)

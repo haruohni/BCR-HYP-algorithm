@@ -9,6 +9,7 @@ class steiner_graph:    # ターミナル付きグラフ
     vertices: list[str] = field(default_factory = list)
     is_terminal: dict[str,bool] = field(default_factory = dict)
     terminals: list[str] = field(default_factory = list)
+    steiner_vertices: list[str] = field(default_factory = list)
     edges: list[dict] = field(default_factory = list)
     arcs: list[dict] = field(default_factory = list)
 
@@ -18,6 +19,7 @@ class steiner_graph:    # ターミナル付きグラフ
         self.vertices = [v["id"] for v in data["vertices"]]
         self.is_terminal = {v["id"]: v["terminal"] for v in data["vertices"]}
         self.terminals = [v["id"] for v in data["vertices"] if v["terminal"] == True]
+        self.steiner_vertices = [v["id"] for v in data["vertices"] if v["terminal"] == False]
         self.edges = data["edges"]
         self.arcs = []
         for e in self.edges:
@@ -28,8 +30,8 @@ class steiner_graph:    # ターミナル付きグラフ
         if num_terminals < 2:
             raise ValueError(f"num_terminals は2以上が必要です: {num_terminals}")
         self.terminals = ["t" + str(i) for i in range(1, num_terminals + 1)]
-        steiner_vertices = ["s" + str(i) for i in range(1, num_steiner_vertices + 1)]
-        self.vertices = self.terminals + steiner_vertices
+        self.steiner_vertices = ["s" + str(i) for i in range(1, num_steiner_vertices + 1)]
+        self.vertices = self.terminals + self.steiner_vertices
         self.is_terminal = {v: v[0] == "t" for v in self.vertices}
         num_vertices = num_terminals + num_steiner_vertices
 
@@ -181,7 +183,27 @@ class steiner_graph:    # ターミナル付きグラフ
             G.add_node(v, is_terminal = self.is_terminal[v])
         for i in range(len(self.arcs)):
             G.add_edge(self.arcs[i]["u"], self.arcs[i]["v"], cost = self.arcs[i]["cost"], z = z_values[i])     
-        return G 
+        return G
+
+    def Dreyfus_Wagner(self, terminal_subset):
+        G = steiner_graph()
+        G.terminals = list(terminal_subset)
+        G.steiner_vertices = self.steiner_vertices
+        G.vertices = G.terminals + G.steiner_vertices
+        G.is_terminal = {v: True for v in G.terminals} + {v: False for v in G.steiner_vertices}
+        G.edges = [e for e in self.edges if e["u"] in G.vertices and e["v"] in G.vertices]
+        adj = G.build_adjucency()
+        start = G.terminals[0]
+        visited = {start}
+        queue = deque([start])
+        while queue:
+            u = queue.popleft()
+            for v in adj[u]:
+                if v not in visited:
+                    visited.add(v)
+                    queue.append(v)
+        if not G.terminals <= visited:
+            return None
 
 if __name__ == "__main__":
     graph = steiner_graph()
