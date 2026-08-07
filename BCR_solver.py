@@ -28,11 +28,6 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
             constraint[j] = -1
             A_ub.append(constraint)
     b_ub = [0] * (num_terminals * num_arcs)
-    delta_in = {v: [] for v in graph.vertices}
-    delta_out = {v: [] for v in graph.vertices}
-    for i in range(len(graph.arcs)):
-        delta_in[graph.arcs[i]["v"]].append(i)
-        delta_out[graph.arcs[i]["u"]].append(i)
 
     def eq_constraint_idx(idx_terminal, idx_vertex):
         return idx_terminal * num_vertices + idx_vertex
@@ -42,9 +37,9 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
     for i in range(num_terminals):
         for j in range(num_vertices):
             constraint = [0] * num_vars
-            for a_idx in delta_in[graph.vertices[j]]:
+            for a_idx in graph.arcs_in[graph.vertices[j]]:
                 constraint[flow_var_idx(i, a_idx)] = -1
-            for a_idx in delta_out[graph.vertices[j]]:
+            for a_idx in graph.arcs_out[graph.vertices[j]]:
                 constraint[flow_var_idx(i, a_idx)] = 1
             A_eq.append(constraint)
             if graph.vertices[j] == terminals_no_root[i]:

@@ -12,6 +12,9 @@ class steiner_graph:    # ターミナル付きグラフ
     steiner_vertices: list[str] = field(default_factory = list)
     edges: list[dict] = field(default_factory = list)
     arcs: list[dict] = field(default_factory = list)
+    adj: dict[str, list[int]] = field(default_factory = dict)
+    arcs_in: dict[str, list[int]] = field(default_factory = dict)
+    arcs_out: dict[str, list[int]] = field(default_factory = dict)
 
     def graph_from_json(self, path):    # pathにグラフのJSONファイルを渡す
         with open(path, "r", encoding="utf-8") as f:
@@ -22,9 +25,12 @@ class steiner_graph:    # ターミナル付きグラフ
         self.steiner_vertices = [v["id"] for v in data["vertices"] if v["terminal"] == False]
         self.edges = data["edges"]
         self.arcs = []
+
         for e in self.edges:
             self.arcs.append({"u": e["u"], "v": e["v"], "cost": e["cost"]})
             self.arcs.append({"u": e["v"], "v": e["u"], "cost": e["cost"]})
+            
+        self.build_adjucency()
 
     def graph_random(self, num_terminals, num_steiner_vertices, cost_min = 1, cost_max = 2, edge_prob = 0.3):    # ターミナル、シュタイナー頂点の個数、密度を渡し、辺コストがランダムな連結グラフを生成する
         if num_terminals < 2:
@@ -55,6 +61,7 @@ class steiner_graph:    # ターミナル付きグラフ
             self.arcs.append({"u": e["u"], "v": e["v"], "cost": e["cost"]})
             self.arcs.append({"u": e["v"], "v": e["u"], "cost": e["cost"]})
 
+        self.build_adjucency()
 
     def validate(self):    # 正当性チェック　不適切ならValueErrorを返す
         if len(self.terminals) < 2:
@@ -76,25 +83,35 @@ class steiner_graph:    # ターミナル付きグラフ
         if len(edge_pairs) != len(set(edge_pairs)):
             raise ValueError("多重辺が存在します")
         
-        adj = self.build_adjucency()
+        if not self.check_terminals_connectivity():
+            raise ValueError("ターミナルが非連結です")
+
+    def check_terminals_connectivity(self):
         start = self.vertices[0]
         visited = {start}
         queue = deque([start])
         while queue:
             u = queue.popleft()
-            for v in adj[u]:
+            for e_idx in self.adj[u]:
+                v = other_endpoint(self.edges[e_idx], u)
                 if v not in visited:
                     visited.add(v)
                     queue.append(v)
-        if len(visited) != len(self.vertices):
-            raise ValueError("グラフが非連結です")
+        return self.terminals <= visited
 
-    def build_adjucency(self):    # 連結性判定の補助として用いる隣接行列
-        adj = {v: [] for v in self.vertices}
-        for e in self.edges:
-            adj[e["u"]].append(e["v"])
-            adj[e["v"]].append(e["u"])
-        return adj
+
+    def build_adjucency(self):    # 隣接行列, 隣接アークのリストを作成
+        self.adj = {v: [] for v in self.vertices}
+        for i in range(len(self.edges)):
+            if not (self.edges[i] is None):
+                self.adj[self.edges[i]["u"]].append(i)
+                self.adj[self.edges[i]["v"]].append(i)
+        self.arcs_in = {v: [] for v in graph.vertices}
+        self.arcs_out = {v: [] for v in graph.vertices}
+        for i in range(len(self.arcs)):
+            if not (self.arcs[i] is None):
+                self.arcs_in[self.arcs[i]["v"]].append(i)
+                self.arcs_out[self.arcs[i]["u"]].append(i)
 
     def graph_plot(self, path = "graph.png"):   #グラフを描画する
         G = self.to_nxgraph()
@@ -191,19 +208,33 @@ class steiner_graph:    # ターミナル付きグラフ
         G.steiner_vertices = self.steiner_vertices
         G.vertices = G.terminals + G.steiner_vertices
         G.is_terminal = {v: True for v in G.terminals} + {v: False for v in G.steiner_vertices}
-        G.edges = [e for e in self.edges if e["u"] in G.vertices and e["v"] in G.vertices]
-        adj = G.build_adjucency()
-        start = G.terminals[0]
-        visited = {start}
-        queue = deque([start])
-        while queue:
-            u = queue.popleft()
-            for v in adj[u]:
-                if v not in visited:
-                    visited.add(v)
-                    queue.append(v)
-        if not G.terminals <= visited:
+        G.edges = [e if (e["u"] in G.vertices and e["v"] in G.vertices) else None for e in self.edges]
+        G.build_adjucency()
+        if not G.check_terminals_connectivity():
             return None
+        shortest_pathes = {v: {
+            "pred_edge": {w: None for w in G.vertices},
+            "cost": float("inf")
+            }
+            for v in self.vertices}
+        for v in self.vertices:
+            shortest_pathes[v] = self.Dijkstra(v)
+
+    def Dijkstra(self, start):
+        visited = set()
+        dist = {v: float("inf") for v in self.vertices}
+        dist[start] = 0
+        pred_edge = {v: None for v in self.vertices}
+        while True:
+            unvisited = {v for v in self.vertices if v not in visited}
+            if not unvisited:
+                break
+            u = min(unvisited, key = lambda v: dist[v])
+            if dist[u] == float("inf"):
+                break
+
+def other_endpoint(edge, v):
+    return edge["v"] if edge["u"] == v else edge["u"]
 
 if __name__ == "__main__":
     graph = steiner_graph()
