@@ -3,6 +3,7 @@ import json
 import random
 from collections import deque
 import networkx as nx
+import itertools as itt
 
 @dataclass
 class steiner_graph:    # ターミナル付きグラフ
@@ -30,7 +31,7 @@ class steiner_graph:    # ターミナル付きグラフ
             self.arcs.append({"u": e["u"], "v": e["v"], "cost": e["cost"]})
             self.arcs.append({"u": e["v"], "v": e["u"], "cost": e["cost"]})
             
-        self.build_adjucency()
+        self.build_adjacency()
 
     def graph_random(self, num_terminals, num_steiner_vertices, cost_min = 1, cost_max = 2, edge_prob = 0.3):    # ターミナル、シュタイナー頂点の個数、密度を渡し、辺コストがランダムな連結グラフを生成する
         if num_terminals < 2:
@@ -61,7 +62,7 @@ class steiner_graph:    # ターミナル付きグラフ
             self.arcs.append({"u": e["u"], "v": e["v"], "cost": e["cost"]})
             self.arcs.append({"u": e["v"], "v": e["u"], "cost": e["cost"]})
 
-        self.build_adjucency()
+        self.build_adjacency()
 
     def validate(self):    # 正当性チェック　不適切ならValueErrorを返す
         if len(self.terminals) < 2:
@@ -97,10 +98,10 @@ class steiner_graph:    # ターミナル付きグラフ
                 if v not in visited:
                     visited.add(v)
                     queue.append(v)
-        return self.terminals <= visited
+        return set(self.terminals) <= visited
 
 
-    def build_adjucency(self):    # 隣接行列, 隣接アークのリストを作成
+    def build_adjacency(self):    # 隣接行列, 隣接アークのリストを作成
         self.adj = {v: [] for v in self.vertices}
         for i in range(len(self.edges)):
             if not (self.edges[i] is None):
@@ -203,41 +204,153 @@ class steiner_graph:    # ターミナル付きグラフ
         return G
 
     def Dreyfus_Wagner(self, terminal_subset):
-        G = steiner_graph()
+        G = steiner_graph()    # 指定されていないターミナルを除いたグラフ
         G.terminals = list(terminal_subset)
         G.steiner_vertices = self.steiner_vertices
         G.vertices = G.terminals + G.steiner_vertices
-        G.is_terminal = {v: True for v in G.terminals} + {v: False for v in G.steiner_vertices}
+        G.is_terminal = {v: True for v in G.terminals} | {v: False for v in G.steiner_vertices}
         G.edges = [e if (e["u"] in G.vertices and e["v"] in G.vertices) else None for e in self.edges]
-        G.build_adjucency()
-        if not G.check_terminals_connectivity():
+        G.build_adjacency()
+        if not G.check_terminals_connectivity():    # ターミナルが連結でなければ計算しない
             return None
-        shortest_pathes = {v: {
-            "pred_edge": {w: None for w in G.vertices},
-            "cost": float("inf")
-            }
-            for v in self.vertices}
-        for v in self.vertices:
-            shortest_pathes[v] = self.Dijkstra(v)
+        shortest_pathes = {u:
+                           {
+                               v:
+                               {
+                                   "cost": float("inf"),
+                                   "pred_edge": None
+                               }
+                               for v in G.vertices
+                           }
+                           for u in G.vertices}
+        for u in G.vertices:
+            shortest_pathes[u] = G.Dijkstra_all(u)    # Dijkstra法で距離グラフを求めておく
 
-    def Dijkstra(self, start):
+        s, s_v = {}, {}
+        for X in itt.combinations(G.vertices, 2):    # DPの基底ケース
+            v, w = X[0], X[1]
+            X = frozenset(X)
+            s[X] = {"cost": shortest_pathes[v][w]["cost"], "X": X, "v": v, "w": w}
+
+        def add_v(X, v):
+            return frozenset(X) | {v}
+
+        def set_dif(X, Y):
+            return frozenset([v for v in X if v not in Y])
+        
+        for i in range(2, len(G.terminals)):    # DP本体
+            for X in itt.combinations(G.terminals, i):
+                X = frozenset(X)
+                s_v[X] = {}
+                for v in set_dif(G.vertices, X):
+                    min_cost = float("inf")
+                    min_X_prime = None
+                    for j in range(1, i):
+                        for X_prime in itt.combinations(X, j):
+                            X_prime = set(X_prime)
+                            current_cost = s[add_v(X_prime, v)]["cost"] + s[add_v(set_dif(X, X_prime), v)]["cost"]
+                            if current_cost < min_cost:
+                                min_cost = current_cost
+                                min_X_prime = X_prime
+                    s_v[X][v] = {"cost": min_cost, "X_prime": min_X_prime}
+
+            for X in itt.combinations(G.terminals, i):
+                X = frozenset(X)
+                for v in set_dif(G.vertices, X):
+                    if add_v(X, v) not in s:
+                        min_cost_1 = float("inf")
+                        min_w_1 = None
+                        for w in X:
+                            current_cost = shortest_pathes[v][w]["cost"] + s[X]["cost"]
+                            if current_cost < min_cost_1:
+                                min_cost_1 = current_cost
+                                min_w_1 = w
+                        min_cost_2 = float("inf")
+                        min_w_2 = None
+
+                        for w in set_dif(G.vertices, X):
+                            current_cost = shortest_pathes[v][w]["cost"] + s_v[X][w]["cost"]
+                            if current_cost < min_cost_2:
+                                min_cost_2 = current_cost
+                                min_w_2 = w
+                        if min_cost_1 <= min_cost_2:
+                            s[add_v(X, v)] = {"cost": min_cost_1, "X": X, "v": v, "w": min_w_1}
+                        else:
+                            s[add_v(X, v)] = {"cost": min_cost_2, "X": X, "v": v, "w": min_w_2}
+
+        def construct_path(shortest_pathes, v, w, component):
+            pathes = shortest_pathes[v]
+            while pathes[w]["pred_edge"] is not None:
+                component.add(pathes[w]["pred_edge"])
+                w = other_endpoint(G.edges[pathes[w]["pred_edge"]], w)
+
+        def construct_s(shortest_pathes, s, s_v, X_v, component):
+            if len(X_v) == 2:
+                v, w = X_v
+                construct_path(shortest_pathes, v, w, component)
+            else:
+                X, v, w = s[X_v]["X"], s[X_v]["v"], s[X_v]["w"]
+                construct_path(shortest_pathes, v, w, component)
+                if w in X:
+                    construct_s(shortest_pathes, s, s_v, X, component)
+                else:
+                    construct_s_v(shortest_pathes, s, s_v, X, w, component)
+
+        def construct_s_v(shortest_pathes, s, s_v, X, v, component):
+            X_prime = s_v[X][v]["X_prime"]
+            construct_s(shortest_pathes, s, s_v, add_v(X_prime, v), component)
+            construct_s(shortest_pathes, s, s_v, add_v(set_dif(X, X_prime), v), component)
+
+        component = set()    # DPの情報から最小コストのコンポーネントを復元
+        final_X = frozenset(G.terminals)
+        construct_s(shortest_pathes, s, s_v, final_X, component)
+        return {
+            "cost": s[final_X]["cost"], 
+            "component": component
+        }
+
+    def Dijkstra_all(self, start):    # startから他の頂点への最短距離をすべて求める
         visited = set()
-        dist = {v: float("inf") for v in self.vertices}
-        dist[start] = 0
-        pred_edge = {v: None for v in self.vertices}
+        result = {v:
+                  {
+                      "cost": float("inf"),
+                      "pred_edge": None
+                  }
+                  for v in self.vertices}
+        result[start]["cost"] = 0
+
         while True:
             unvisited = {v for v in self.vertices if v not in visited}
             if not unvisited:
                 break
-            u = min(unvisited, key = lambda v: dist[v])
-            if dist[u] == float("inf"):
+            u = min(unvisited, key = lambda v: result[v]["cost"])
+            if result[u]["cost"] == float("inf"):
                 break
+            visited.add(u)
+            for e_idx in self.adj[u]:
+                edge = self.edges[e_idx]
+                v = other_endpoint(edge, u)
+                if v in visited:
+                    continue
+                new_dist = result[u]["cost"] + edge["cost"]
+                if new_dist < result[v]["cost"]:
+                    result[v]["cost"] = new_dist
+                    result[v]["pred_edge"] = e_idx
+
+        return result
 
 def other_endpoint(edge, v):
     return edge["v"] if edge["u"] == v else edge["u"]
 
 if __name__ == "__main__":
     graph = steiner_graph()
-    graph.graph_random(4, 4, 1, 2, 0.1)
+    graph.graph_random(5, 5, 1, 2, 0.1)
     graph.validate()
     graph.graph_plot()
+    subset = set()
+    for i in range(3):
+        subset.add(graph.terminals[i])
+    result = graph.Dreyfus_Wagner(subset)
+    print(result["cost"])
+    for i in result["component"]:
+        print(graph.edges[i])
