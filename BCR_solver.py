@@ -64,8 +64,8 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
         print("分数解が存在します")
 
     return {
-        "arcs": graph.arcs,
         "optimal_value": res.fun,
+        "arcs": graph.arcs,
         "z": solution
         }
 

@@ -1,5 +1,7 @@
 import sys
 from steiner_graph import steiner_graph as sg
+import BCR_solver
+import HYP_solver
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

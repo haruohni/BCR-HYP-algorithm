@@ -107,8 +107,8 @@ class steiner_graph:    # ターミナル付きグラフ
             if not (self.edges[i] is None):
                 self.adj[self.edges[i]["u"]].append(i)
                 self.adj[self.edges[i]["v"]].append(i)
-        self.arcs_in = {v: [] for v in graph.vertices}
-        self.arcs_out = {v: [] for v in graph.vertices}
+        self.arcs_in = {v: [] for v in self.vertices}
+        self.arcs_out = {v: [] for v in self.vertices}
         for i in range(len(self.arcs)):
             if not (self.arcs[i] is None):
                 self.arcs_in[self.arcs[i]["v"]].append(i)
