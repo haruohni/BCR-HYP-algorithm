@@ -278,32 +278,48 @@ class steiner_graph:    # ターミナル付きグラフ
                         else:
                             s[add_v(X, v)] = {"cost": min_cost_2, "X": X, "v": v, "w": min_w_2}
 
-        def construct_path(shortest_pathes, v, w, component):
+        def construct_path(v, w):
             pathes = shortest_pathes[v]
             while pathes[w]["pred_edge"] is not None:
-                component.add(pathes[w]["pred_edge"])
+                edge_idx = pathes[w]["pred_edge"]
+                component.add(edge_idx)
+                u_1, u_2 = G.edges[edge_idx]["u"], G.edges[edge_idx]["v"]
+                if u_1 in G.terminals:    # ターミナルごとに次数を数え、次数2になったらエラー
+                    degree[u_1] += 1
+                    if degree[u_1] == 2:
+                        raise InvalidComponentError()
+                if u_2 in G.terminals:
+                    degree[u_2] += 1
+                    if degree[u_2] == 2:
+                        raise InvalidComponentError()                
                 w = other_endpoint(G.edges[pathes[w]["pred_edge"]], w)
 
-        def construct_s(shortest_pathes, s, s_v, X_v, component):
+        def construct_s(X_v):
             if len(X_v) == 2:
                 v, w = X_v
-                construct_path(shortest_pathes, v, w, component)
+                construct_path(v, w)
             else:
                 X, v, w = s[X_v]["X"], s[X_v]["v"], s[X_v]["w"]
-                construct_path(shortest_pathes, v, w, component)
+                construct_path(v, w)
                 if w in X:
-                    construct_s(shortest_pathes, s, s_v, X, component)
+                    construct_s(X)
                 else:
-                    construct_s_v(shortest_pathes, s, s_v, X, w, component)
+                    construct_s_v(X, w)
 
-        def construct_s_v(shortest_pathes, s, s_v, X, v, component):
+        def construct_s_v(X, v):
             X_prime = s_v[X][v]["X_prime"]
-            construct_s(shortest_pathes, s, s_v, add_v(X_prime, v), component)
-            construct_s(shortest_pathes, s, s_v, add_v(set_dif(X, X_prime), v), component)
+            construct_s(add_v(X_prime, v))
+            construct_s(add_v(set_dif(X, X_prime), v))
 
-        component = set()    # DPの情報から最小コストのコンポーネントを復元
+        component = set()
+        degree = {v: 0 for v in G.terminals}
         final_X = frozenset(G.terminals)
-        construct_s(shortest_pathes, s, s_v, final_X, component)
+
+        try:
+            construct_s(final_X)    # DPの情報から最小コストのコンポーネントを復元
+        except InvalidComponentError:
+            return None    # 次数2のターミナルがあった場合、そこで区切った2つのコンポーネントだけ考えれば十分なので、追加しない
+        
         return {
             "cost": s[final_X]["cost"], 
             "component": component
@@ -339,6 +355,9 @@ class steiner_graph:    # ターミナル付きグラフ
 
         return result
 
+class InvalidComponentError(Exception):
+    pass
+
 def other_endpoint(edge, v):
     return edge["v"] if edge["u"] == v else edge["u"]
 
@@ -351,6 +370,7 @@ if __name__ == "__main__":
     for i in range(3):
         subset.add(graph.terminals[i])
     result = graph.Dreyfus_Wagner(subset)
-    print(result["cost"])
-    for i in result["component"]:
-        print(graph.edges[i])
+    if result is not None:
+        print(result["cost"])
+        for i in result["component"]:
+            print(graph.edges[i])
