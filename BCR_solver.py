@@ -65,7 +65,6 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
 
     return {
         "optimal_value": res.fun,
-        "arcs": graph.arcs,
         "z": solution
         }
 

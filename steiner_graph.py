@@ -100,7 +100,6 @@ class steiner_graph:    # ターミナル付きグラフ
                     queue.append(v)
         return set(self.terminals) <= visited
 
-
     def build_adjacency(self):    # 隣接行列, 隣接アークのリストを作成
         self.adj = {v: [] for v in self.vertices}
         for i in range(len(self.edges)):
