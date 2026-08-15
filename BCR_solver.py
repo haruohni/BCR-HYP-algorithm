@@ -54,18 +54,16 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
         raise RuntimeError("BCRの求解に失敗しました")
 
     solution = [res.x[i] for i in range(num_arcs)]
-    num_frac = 0
+    exist_frac = False
     for i in solution:
         if 1e-6 < i and i < 1-1e-6:
-            num_frac += 1
-    if num_frac == 0:
-        print("解は整数値です")
-    else:
-        print("分数解が存在します")
+            exist_frac = True
+            break
 
     return {
         "optimal_value": res.fun,
-        "z": solution
+        "z": solution,
+        "exist_frac": exist_frac
         }
 
 if __name__ == "__main__":
