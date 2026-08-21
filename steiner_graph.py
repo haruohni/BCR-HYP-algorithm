@@ -64,7 +64,53 @@ class steiner_graph:    # ターミナル付きグラフ
 
         self.build_adjacency()
 
-    def validate(self):    # 正当性チェック　不適切ならValueErrorを返す
+    def graph_random_bipartite_gadget(self, num_terminals=6, num_steiner=6, min_degree=2, max_degree=4):
+        """
+        root - Steiner - terminal という2層構造で、
+        各terminalがちょうどdegree個のSteinerに接続するようにランダムに配線する
+        (Skutella型ギャップの本質：terminal-Steiner間の均一な多重接続)
+        """
+        self.vertices = []
+        self.edges = []
+        self.arcs = []
+        self.is_terminal = {}
+        self.terminals = []
+        self.steiner_vertices = []
+
+        root = "r"
+        self.vertices.append(root)
+        self.is_terminal[root] = True
+        self.terminals.append(root)
+
+        for i in range(num_terminals):
+            t = ("t", i)
+            self.vertices.append(t)
+            self.is_terminal[t] = True
+            self.terminals.append(t)
+
+        for j in range(num_steiner):
+            s = ("s", j)
+            self.vertices.append(s)
+            self.is_terminal[s] = False
+            self.steiner_vertices.append(s)
+            self.edges.append({"u": root, "v": s, "cost": 1.0})
+
+        # 各terminalが、ちょうど degree 個のSteinerにランダムに接続する
+        # (次数を揃えることで対称性を保つ)
+        steiner_list = [("s", j) for j in range(num_steiner)]
+        for i in range(num_terminals):
+                degree = random.randint(min_degree, max_degree)
+                chosen = random.sample(steiner_list, min(degree, num_steiner))
+                for s in chosen:
+                    self.edges.append({"u": s, "v": ("t", i), "cost": 1.0})
+
+        for e in self.edges:
+            self.arcs.append({"u": e["u"], "v": e["v"], "cost": e["cost"]})
+            self.arcs.append({"u": e["v"], "v": e["u"], "cost": e["cost"]})
+
+        self.build_adjacency()
+
+    def validate(self):
         if len(self.terminals) < 2:
             raise ValueError("ターミナルは2以上必要です")
         
@@ -134,10 +180,10 @@ class steiner_graph:    # ターミナル付きグラフ
 
         A.graph_attr["sep"] = "+15"
         A.graph_attr["len"] = "2.0"
-        A.graph_attr["size"] = "10,10"
+        A.graph_attr["size"] = "20,20"
         A.graph_attr["ratio"] = "compress"
         A.graph_attr["dpi"] = "300"
-        A.node_attr["fontsize"] = "10"
+        A.node_attr["fontsize"] = "8"
         A.edge_attr["fontsize"] = "8"
         A.node_attr["width"] = "0.2"
         A.node_attr["height"] = "0.2"
@@ -148,11 +194,18 @@ class steiner_graph:    # ターミナル付きグラフ
     def to_nxgraph(self):    # networkxのグラフに変換する
         G = nx.Graph()
         for v in self.vertices:
-            G.add_node(v, is_terminal = self.is_terminal[v])
+            G.add_node(self.format_label(v), is_terminal = self.is_terminal[v])
         for e in self.edges:
-            G.add_edge(e["u"], e["v"], cost = e["cost"])
+            G.add_edge(self.format_label(e["u"]), self.format_label(e["v"]), cost = e["cost"])
         return G
 
+    def format_label(self, v):
+        if type(v) == tuple:
+            if len(v) == 2:
+                kind, i = v
+                return f"{kind}{i}"
+        return v
+        
     def BCR_plot(self, z_values, path = "BCR_graph.png"):
         if len(z_values) != len(self.arcs):
             raise ValueError("解の次元がアークの本数に一致しません")
@@ -183,7 +236,7 @@ class steiner_graph:    # ターミナル付きグラフ
 
         A.graph_attr["sep"] = "+15"
         A.graph_attr["len"] = "3.0"
-        A.graph_attr["size"] = "10,10"
+        A.graph_attr["size"] = "20,20"
         A.graph_attr["ratio"] = "compress"
         A.graph_attr["dpi"] = "300"
         A.node_attr["fontsize"] = "8"
@@ -197,9 +250,9 @@ class steiner_graph:    # ターミナル付きグラフ
     def to_nxgraph_directed(self, z_values):
         G = nx.DiGraph()
         for v in self.vertices:
-            G.add_node(v, is_terminal = self.is_terminal[v])
+            G.add_node(self.format_label(v), is_terminal = self.is_terminal[v])
         for i in range(len(self.arcs)):
-            G.add_edge(self.arcs[i]["u"], self.arcs[i]["v"], cost = self.arcs[i]["cost"], z = z_values[i])     
+            G.add_edge(self.format_label(self.arcs[i]["u"]), self.format_label(self.arcs[i]["v"]), cost = self.arcs[i]["cost"], z = z_values[i])     
         return G
 
     def Dreyfus_Wagner(self, terminal_subset):

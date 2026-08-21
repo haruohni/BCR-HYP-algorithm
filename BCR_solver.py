@@ -68,8 +68,7 @@ def BCR_solver(graph: sg, root = None):    # steiner_graphとオプションでr
 
 if __name__ == "__main__":
     graph = sg()
-    graph.graph_random(4, 6, 1, 5, 0.2)
-    graph.validate()
+    graph.graph_random_bipartite_gadget()
     graph.graph_plot()
     result = BCR_solver(graph)
     graph.BCR_plot(result["z"])

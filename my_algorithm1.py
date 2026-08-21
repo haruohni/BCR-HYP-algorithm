@@ -249,17 +249,14 @@ def get_demand_pathes(graph: sg, root = None):
 
 if __name__ == "__main__":
     graph = sg()
-    graph.graph_from_json("examplegraph1.json")
-    graph.validate()
-    graph.graph_plot()
-    result = my_algorithm_1(graph)
-    HYP_components, HYP_cost = result["components"], result["gained_value"]
-    for component, component_info in HYP_components.items():
-        component_arcs = set()
-        component_cost = 0
-        for arc_idx in component:
-            arc = graph.arcs[arc_idx]
-            component_arcs.add((arc["u"], arc["v"]))
-            component_cost += arc["cost"]
-        print(f"x: {component_info["value"]}, cost: {component_cost}, component: {component_arcs}")
-    print(f"gained value: {HYP_cost}")
+    non_equal_num = 0
+    for i in range(50):
+        graph.graph_random_bipartite_gadget(num_terminals=6, num_steiner=6, degree=3)
+        graph.graph_plot()
+        result_HYP = HYP_solver.HYP_solver(graph)
+        result_my_algorithm = my_algorithm_1(graph)
+        equal = abs(result_HYP['optimal_value'] - result_my_algorithm['gained_value']) < 1e-6
+        print(f"{i}: {equal}, cost: {result_HYP['optimal_value']}")
+        if not equal:
+            non_equal_num += 1
+    print(f"failed: {non_equal_num}")
