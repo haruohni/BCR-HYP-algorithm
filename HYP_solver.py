@@ -50,14 +50,4 @@ def HYP_solver(graph: sg):
     }
 
 if __name__ == "__main__":
-    graph = sg()
-    graph.graph_from_json("examplegraph1.json")
-    graph.validate()
-    graph.graph_plot()
-    result = HYP_solver(graph)
-    terminal_subsets = list(result["components"])
-    for i in range(len(terminal_subsets)):
-        if result["x"][i] > 1e-6:
-            component = result["components"][terminal_subsets[i]]
-            print(f"x: {result['x'][i]}, cost: {component['cost']}, component: {[(graph.edges[idx]['u'], graph.edges[idx]['v']) for idx in component['component']]}")
-    print(f"optimal value: {result['optimal_value']}")
+    print("None")

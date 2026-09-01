@@ -62,27 +62,24 @@ def my_algorithm_1(graph: sg):
 
         y_v = defaultdict(float)
         for component, component_info in current_HYP_components.items():
+            comp_node = (component,)   # コンポーネントを1点に潰す
+
             for v in component_info["source"]:
                 y_v[v] += component_info["value"]
+                D_p.add_edge(v, comp_node, capacity=float("inf"))
+
             y_v[component_info["root"]] += component_info["value"]
+            D_p.add_edge(component_info["root"], comp_node, capacity=float("inf"))
 
-            for arc_idx in component:
-                u, v = graph.arcs[arc_idx]["u"], graph.arcs[arc_idx]["v"]
-                if u in graph.steiner_vertices:
-                    u = (u, component)
-                if v in graph.steiner_vertices or v == component_info["root"]:
-                    v = (v, component)
-                D_p.add_edge(u, v, capacity = component_info["value"])
-
-            D_p.add_edge((component_info["root"], component), ("t", "special"), capacity = component_info["value"])
+            D_p.add_edge(comp_node, ("t", "special"), capacity=component_info["value"])
 
         y_R = 0
         for v in graph.terminals:
             y_v[v] -= 1
             y_R += y_v[v]
-            D_p.add_edge(("s", "special"), v, capacity = y_v[v])
+            D_p.add_edge(("s", "special"), v, capacity=y_v[v])
 
-        D_p.add_edge(current_root, ("t", "special"), capacity = float("inf"))
+        D_p.add_edge(current_root, ("t", "special"), capacity=float("inf"))
 
         return D_p, y_R
 
@@ -249,14 +246,24 @@ def get_demand_pathes(graph: sg, root = None):
 
 if __name__ == "__main__":
     graph = sg()
-    non_equal_num = 0
-    for i in range(50):
-        graph.graph_random_bipartite_gadget(num_terminals=6, num_steiner=6, degree=3)
-        graph.graph_plot()
-        result_HYP = HYP_solver.HYP_solver(graph)
-        result_my_algorithm = my_algorithm_1(graph)
-        equal = abs(result_HYP['optimal_value'] - result_my_algorithm['gained_value']) < 1e-6
-        print(f"{i}: {equal}, cost: {result_HYP['optimal_value']}")
-        if not equal:
-            non_equal_num += 1
-    print(f"failed: {non_equal_num}")
+    graph.graph_from_json("examplegraph1.json")
+    graph.validate()
+    graph.graph_plot()
+    result_HYP = HYP_solver.HYP_solver(graph)
+    terminal_subsets = list(result_HYP["components"])
+    print(f"HYP: value: {result_HYP['optimal_value']}")
+    for i in range(len(terminal_subsets)):
+        if result_HYP["x"][i] > 1e-6:
+            component = result_HYP["components"][terminal_subsets[i]]
+            print(f"x: {result_HYP['x'][i]}, cost: {component['cost']}, component: {[(graph.edges[idx]['u'], graph.edges[idx]['v']) for idx in component['component']]}")
+    result_my_algorithm = my_algorithm_1(graph)
+    print(f"my_algorithm: value: {result_my_algorithm['gained_value']}")
+    for component_idx, info in result_my_algorithm["components"].items():
+        component = []
+        component_cost = 0
+        for idx in component_idx:
+            component.append((graph.arcs[idx]["u"], graph.arcs[idx]["v"]))
+            component_cost += graph.arcs[idx]["cost"]
+        print(f"x: {info['value']}, cost: {component_cost}, component: {component}")
+    result = BCR_solver.BCR_solver(graph)
+    graph.BCR_plot(result["z"])
